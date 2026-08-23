@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TRAE 论坛增强助手
 // @namespace    https://github.com/Wayhhow
-// @version      0.2.0
+// @version      0.2.1
 // @description  一键暗黑模式 + 列表页数据增强 + 帖子温度计 + 随机漫游 | © 2026 Wayhhow · MIT License
 // @author       Wayhhow
 // @homepage     https://github.com/Wayhhow
@@ -435,6 +435,46 @@ html.trae-dark{
   --secondary-very-high-rgb:74,75,82;
   --d-hover-rgb:38,39,43;
   --header_primary-rgb:232,232,230;
+  /* 行内代码 / 代码块背景（浅色块 bug 主因） */
+  --inline-code-bg:#2c2d32;
+  --hljs-bg:#232428;
+  /* success 衍生（"已解决"等绿色徽章背景） */
+  --success-rgb:52,199,123;
+  --success-low:#1a3a2a;
+  --success-medium:#235c3e;
+  --success-hover:#2ea86e;
+  /* highlight 衍生（行内高亮/搜索高亮背景） */
+  --highlight-rgb:212,158,60;
+  --highlight-bg:#3d3717;
+  --highlight-low-or-medium:#3d3717;
+  /* danger 衍生 */
+  --danger-low:#3a2320;
+  --danger-low-mid:rgba(228,87,53,.35);
+  --danger-medium:#a5402c;
+  --danger-hover:#c94e37;
+  /* love 衍生 */
+  --love-low:#3a2438;
+  /* 选中 / hover 背景 */
+  --d-selected:#2c2d32;
+  --d-selected-hover:#34353b;
+  --d-selected-text-color:#e8e8e6;
+  /* 供 rgba() 使用的 rgb 通道 */
+  --primary-low-rgb:44,45,50;
+  --primary-very-low-rgb:35,36,40;
+  /* 强调文字色（亮色主题下为深色，暗黑下需提亮） */
+  --primary-very-high:#dedfe2;
+  /* -or- 合成变量：亮色主题下解析为浅色，暗黑下改指向对应深色变量 */
+  --primary-or-primary-low-mid:var(--primary);
+  --secondary-or-primary:var(--secondary);
+  --tertiary-or-tertiary-low:var(--tertiary);
+  --tertiary-med-or-tertiary:var(--tertiary);
+  --tertiary-or-white:var(--tertiary);
+  --tertiary-low-or-tertiary-high:var(--tertiary-high);
+  --primary-med-or-secondary-med:var(--primary-medium);
+  --primary-med-or-secondary-high:var(--primary-medium);
+  --primary-high-or-secondary-low:var(--primary-high);
+  --primary-low-mid-or-secondary-high:var(--primary-low-mid);
+  --primary-low-mid-or-secondary-low:var(--primary-low-mid);
 }
 html.trae-dark body{background:var(--secondary);}
 `;
