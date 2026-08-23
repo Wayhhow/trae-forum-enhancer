@@ -1,0 +1,29 @@
+name: 功能建议
+description: 希望增加新功能或改进现有功能
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 功能描述
+      description: 想要什么功能？在什么页面生效？
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: 使用场景
+      description: 这个功能解决了什么痛点？
+    validations:
+      required: false
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 重要程度
+      options:
+        - 锦上添花
+        - 比较需要
+        - 强烈需要
+    validations:
+      required: false

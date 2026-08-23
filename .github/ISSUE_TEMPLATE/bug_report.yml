@@ -1,0 +1,42 @@
+name: Bug 反馈
+description: 脚本功能异常、样式错位或报错
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 出现了什么现象？期望的行为是什么？
+    validations:
+      required: true
+  - type: input
+    id: script-version
+    attributes:
+      label: 脚本版本
+      description: Tampermonkey 脚本编辑器顶部可见，如 0.2.0
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: 浏览器与插件版本
+      placeholder: "Chrome 126 + Tampermonkey 5.3"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 1. 打开哪个页面 → 2. 做了什么操作 → 3. 看到什么
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: 控制台报错
+      description: 按 F12 打开 DevTools → Console，粘贴红色报错（如有）
+      render: shell
+    validations:
+      required: false
