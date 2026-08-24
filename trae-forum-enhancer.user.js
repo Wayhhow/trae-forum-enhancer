@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TRAE 论坛增强助手
 // @namespace    https://github.com/Wayhhow
-// @version      0.2.1
+// @version      0.2.2
 // @description  一键暗黑模式 + 列表页数据增强 + 帖子温度计 + 随机漫游 | © 2026 Wayhhow · MIT License
 // @author       Wayhhow
 // @homepage     https://github.com/Wayhhow
@@ -174,45 +174,68 @@
 
   function addTemperature(row, topic) {
     const temp = computeTemperature(topic);
-    if (temp <= 0) return;
     const viewsCell = row.querySelector('td.num.views');
     if (!viewsCell) return;
-    const bar = document.createElement('span');
-    bar.className = 'trae-ext-temp';
+    let bar = viewsCell.querySelector('.trae-ext-temp');
+    if (temp <= 0) {
+      if (bar) bar.remove();
+      return;
+    }
+    if (!bar) {
+      bar = document.createElement('span');
+      bar.className = 'trae-ext-temp';
+      viewsCell.appendChild(bar);
+    }
     bar.title = `热度 ${temp} · ${topic.likes} 赞 · ${topic.replies} 回复 · ${formatCount(topic.views)} 浏览`;
-    const fill = document.createElement('span');
-    fill.className = 'trae-ext-temp-fill';
-    fill.style.width = temp + '%';
-    fill.style.background = tempColor(temp);
-    bar.appendChild(fill);
-    viewsCell.appendChild(bar);
+    let fill = bar.querySelector('.trae-ext-temp-fill');
+    if (!fill) {
+      fill = document.createElement('span');
+      fill.className = 'trae-ext-temp-fill';
+      bar.appendChild(fill);
+    }
+    const width = temp + '%';
+    if (fill.style.width !== width) fill.style.width = width;
+    const color = tempColor(temp);
+    if (fill.style.background !== color) fill.style.background = color;
   }
 
   /* ---------------- 列表页数据增强 ---------------- */
 
   function addLikesBadge(row, topic, temp) {
-    if (!topic.likes) return;
     const viewsCell = row.querySelector('td.num.views');
     if (!viewsCell) return;
-    const badge = document.createElement('span');
-    badge.className = 'trae-ext-likes';
+    let badge = viewsCell.querySelector('.trae-ext-likes');
+    if (!topic.likes) {
+      if (badge) badge.remove();
+      return;
+    }
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'trae-ext-likes';
+      viewsCell.appendChild(badge);
+    }
     badge.title = '点赞数 ' + topic.likes;
-    badge.textContent = (temp >= HOT_TEMPERATURE ? '🔥 ' : '') + '❤ ' + topic.likes;
-    viewsCell.appendChild(badge);
+    const text = (temp >= HOT_TEMPERATURE ? '🔥 ' : '') + '❤ ' + topic.likes;
+    if (badge.textContent !== text) badge.textContent = text;
   }
 
   function addSolvedBadge(row, topic) {
-    if (!topic.solved) return;
     const titleLine = row.querySelector('.link-top-line');
     if (!titleLine) return;
-    const badge = document.createElement('span');
-    badge.className = 'trae-ext-solved';
-    badge.textContent = '✓ 已解决';
-    titleLine.appendChild(badge);
+    const badge = titleLine.querySelector('.trae-ext-solved');
+    if (!topic.solved) {
+      if (badge) badge.remove();
+      return;
+    }
+    if (!badge) {
+      const newBadge = document.createElement('span');
+      newBadge.className = 'trae-ext-solved';
+      newBadge.textContent = '✓ 已解决';
+      titleLine.appendChild(newBadge);
+    }
   }
 
   function enhanceRow(row) {
-    if (row.classList.contains(ROW_MARK)) return;
     const topic = topicCache.get(row.dataset.topicId);
     if (!topic) return;
     row.classList.add(ROW_MARK);
