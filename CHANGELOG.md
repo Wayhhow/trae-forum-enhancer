@@ -2,6 +2,13 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.2] - 2026-08-24
+
+### 修复
+- **温度条重复叠加 / 部分帖子无温度条**：原实现以 `<tr>` 上的 `trae-ext-done` 类标记作为"已增强"的唯一判据，与 Discourse(Ember) 重渲染的 DOM 状态失同步——行 class 被模板重写（标记丢失）时对同一单元重复追加温度条；单元子节点被重建（温度条销毁）而标记仍在时永久跳过
+  - 修复：`addTemperature` / `addLikesBadge` / `addSolvedBadge` 改为幂等的 update-or-create，以元素实际存在为准，标记丢失不重复、子节点销毁可自愈
+  - 数值仅在变化时写入，避免触发 MutationObserver 自激循环
+
 ## [0.2.1] - 2026-08-23
 
 ### 修复
