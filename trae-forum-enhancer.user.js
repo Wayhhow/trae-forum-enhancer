@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TRAE 论坛增强助手
 // @namespace    https://github.com/Wayhhow
-// @version      0.2.2
+// @version      0.2.3
 // @description  一键暗黑模式 + 列表页数据增强 + 帖子温度计 + 随机漫游 | © 2026 Wayhhow · MIT License
 // @author       Wayhhow
 // @homepage     https://github.com/Wayhhow
@@ -79,6 +79,10 @@
     collectTopics((data.topic_list && data.topic_list.topics) || data.topics);
   }
 
+  function matchesList(url) {
+    return typeof url === 'string' && LIST_URL_PATTERN.test(url);
+  }
+
   function hookFetch() {
     const originalFetch = window.fetch;
     window.fetch = function (...args) {
@@ -86,7 +90,7 @@
       try {
         const source = args[0];
         const url = typeof source === 'string' ? source : (source && source.url) || '';
-        if (LIST_URL_PATTERN.test(url)) {
+        if (matchesList(url)) {
           result
             .then((res) => res.clone().json().then(collectFromJson).catch(() => {}))
             .catch(() => {});
@@ -95,6 +99,27 @@
         /* 钩子不能影响原站逻辑 */
       }
       return result;
+    };
+  }
+
+  // 论坛“加载更多”走的是 XMLHttpRequest，fetch 钩子看不到，需单独拦截。
+  function hookXhr() {
+    const originalOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+      this.__traeUrl = url;
+      if (!this.__traeHooked) {
+        this.__traeHooked = true;
+        const self = this;
+        this.addEventListener('load', () => {
+          if (!matchesList(self.__traeUrl) || !self.responseText) return;
+          try {
+            collectFromJson(JSON.parse(self.responseText));
+          } catch (err) {
+            /* 单条响应损坏时跳过 */
+          }
+        });
+      }
+      return originalOpen.call(this, method, url, ...rest);
     };
   }
 
@@ -515,6 +540,7 @@ html.trae-dark body{background:var(--secondary);}
   }
 
   hookFetch();
+  hookXhr();
   injectStyles();
   try {
     if (localStorage.getItem(DARK_KEY) === '1') {

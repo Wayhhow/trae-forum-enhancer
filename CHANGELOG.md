@@ -2,6 +2,13 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.3] - 2026-08-26
+
+### 修复
+- **滚动加载更多帖子时热度/点赞数不显示**：根因是论坛使用 `XMLHttpRequest` 加载第 2 页及以后的帖子，脚本只拦截了 `fetch`，导致 `topicCache` 缺失数据，新行渲染时无热度条与点赞徽章
+  - 修复：新增 `hookXhr()` 在 `XMLHttpRequest.prototype.open` 处注册单例监听器，对命中列表模式的响应解析 JSON 后汇入 `topicCache`；渲染路径与 MutationObserver 完全复用，无需额外改动
+  - 验证：抓取 `/latest.json?page=2` 确认字段齐全（`like_count`、`views`、`posts_count`、`has_accepted_answer` 等 34 个字段均存在）；注入同逻辑的在线验证脚本后，滚轮加载更多页面出现 180 行主题、其中 60 行渲染点赞徽章，含 42 个落在首屏之外的追加行
+
 ## [0.2.2] - 2026-08-24
 
 ### 修复
