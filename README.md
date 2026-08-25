@@ -7,7 +7,7 @@
 为 [TRAE 官方中文社区](https://forum.trae.cn/) 打造的油猴脚本，让逛论坛更舒服一点。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.3-blue.svg)](CHANGELOG.md)
 [![Discourse](https://img.shields.io/badge/Discourse-2026.x-green.svg)](https://forum.trae.cn/)
 
 [**立即安装**](#-安装) · [功能一览](#-功能一览) · [更新日志](CHANGELOG.md) · [反馈问题](../../issues) · [论坛讨论帖](https://forum.trae.cn/t/topic/177516)
