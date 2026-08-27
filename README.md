@@ -2,12 +2,12 @@
 
 # 🌙 TRAE 论坛增强助手
 
-**一键暗黑模式 · 列表数据增强 · 帖子温度计 · 随机漫游**
+**一键暗黑模式 · 列表数据增强 · 帖子温度计 · 热度排序 · 随机漫游**
 
 为 [TRAE 官方中文社区](https://forum.trae.cn/) 打造的油猴脚本，让逛论坛更舒服一点。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.3-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](CHANGELOG.md)
 [![Discourse](https://img.shields.io/badge/Discourse-2026.x-green.svg)](https://forum.trae.cn/)
 
 [**立即安装**](#-安装) · [功能一览](#-功能一览) · [更新日志](CHANGELOG.md) · [反馈问题](../../issues) · [论坛讨论帖](https://forum.trae.cn/t/topic/177516)
@@ -46,6 +46,16 @@
 
 - 按 7 天半衰期衰减：刚被回复的老帖不会一直"发烧"，新帖更容易被看到
 - 悬停温度条可看明细：`热度 98 · 45 赞 · 36 回复 · 1.6k 浏览`
+
+### 📈 热度排序
+
+列表页可按自定义热度公式排序，支持升序/降序切换：
+
+- **表头入口**：与"回复""浏览量""活动"并列，新增 `🌡热度` 可点击列
+- **快捷按钮**："新建话题"按钮左侧独立的热度排序入口
+- 点击在降序 ↔ 升序间循环切换，状态持久化到本地，刷新后自动恢复
+- 点击 Discourse 原生排序按钮（浏览量/回复/活动）时自动清除热度排序
+- 翻页、换分类、路由切换后自动重注入
 
 ### 🎲 随机漫游
 

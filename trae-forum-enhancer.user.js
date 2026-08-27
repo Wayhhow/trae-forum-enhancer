@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TRAE 论坛增强助手
 // @namespace    https://github.com/Wayhhow
-// @version      0.2.3
+// @version      0.3.0
 // @description  一键暗黑模式 + 列表页数据增强 + 帖子温度计 + 随机漫游 | © 2026 Wayhhow · MIT License
 // @author       Wayhhow
 // @homepage     https://github.com/Wayhhow
@@ -40,6 +40,9 @@
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor" stroke="none"/></svg>';
 
   const topicCache = new Map();
+
+  const SORT_STATE_KEY = 'traeExtSortHeat';
+  let heatSortState = null;
 
   /* ---------------- 工具函数 ---------------- */
 
@@ -272,6 +275,9 @@
 
   function enhanceVisibleRows() {
     document.querySelectorAll('.topic-list-item[data-topic-id]').forEach(enhanceRow);
+    rememberRowOrder();
+    injectHeatSortHeader();
+    injectHeatSortToolbar();
   }
 
   function watchRows() {
@@ -328,6 +334,205 @@
       .then((url) => {
         if (url) location.href = url;
       });
+  }
+
+  /* ---------------- 热度排序 ---------------- */
+
+  function getStoredHeatSort() {
+    try {
+      const v = localStorage.getItem(SORT_STATE_KEY);
+      if (v === 'asc' || v === 'desc') return v;
+    } catch (err) {
+      /* ignore */
+    }
+    return null;
+  }
+
+  function setStoredHeatSort(dir) {
+    try {
+      if (dir) localStorage.setItem(SORT_STATE_KEY, dir);
+      else localStorage.removeItem(SORT_STATE_KEY);
+    } catch (err) {
+      /* ignore */
+    }
+  }
+
+  function sortTopicRows(dir) {
+    const table = document.querySelector('.topic-list');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll(':scope > tr.topic-list-item'));
+    if (rows.length < 2) return;
+
+    const scored = rows.map((row) => {
+      const id = row.dataset.topicId;
+      const topic = topicCache.get(id);
+      const temp = topic ? computeTemperature(topic) : 0;
+      return { row, temp };
+    });
+
+    const mult = dir === 'asc' ? 1 : -1;
+    scored.sort((a, b) => (a.temp - b.temp) * mult);
+
+    const frag = document.createDocumentFragment();
+    for (const s of scored) frag.appendChild(s.row);
+    tbody.appendChild(frag);
+  }
+
+  function toggleHeatSort() {
+    const next = heatSortState === 'desc' ? 'asc' : 'desc';
+    heatSortState = next;
+    setStoredHeatSort(next);
+    sortTopicRows(next);
+    updateHeatSortUI();
+  }
+
+  function clearHeatSort() {
+    heatSortState = null;
+    setStoredHeatSort(null);
+    const table = document.querySelector('.topic-list');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll(':scope > tr.topic-list-item'));
+    rows.sort((a, b) => {
+      const ai = a.dataset.topicIndex || 0;
+      const bi = b.dataset.topicIndex || 0;
+      return ai - bi;
+    });
+    const frag = document.createDocumentFragment();
+    for (const r of rows) frag.appendChild(r);
+    tbody.appendChild(frag);
+    updateHeatSortUI();
+  }
+
+  function buildHeatTh() {
+    const th = document.createElement('th');
+    th.setAttribute('data-sort-order', 'heat');
+    th.setAttribute('scope', 'col');
+    th.className = 'topic-list-data heat sortable num trae-ext-heat-th';
+    th.innerHTML = '<button>🌡热度</button>';
+    th.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleHeatSort();
+    });
+    return th;
+  }
+
+  function injectHeatSortHeader() {
+    if (!matchesList(location.href)) return;
+    const thead = document.querySelector('.topic-list thead tr');
+    if (!thead) return;
+    if (thead.querySelector('.trae-ext-heat-th')) return;
+
+    const lastTh = thead.querySelector('th.topic-list-data.sortable:last-of-type');
+    if (lastTh) lastTh.after(buildHeatTh());
+    else thead.appendChild(buildHeatTh());
+  }
+
+  function buildHeatToolbarButton() {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-icon-text d-combo-button-button trae-ext-heat-btn';
+    btn.setAttribute('aria-label', '按热度排序');
+    btn.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="1em" height="1em"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>' +
+      '<span class="d-button-label">热度</span>';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleHeatSort();
+    });
+    return btn;
+  }
+
+  function injectHeatSortToolbar() {
+    if (!matchesList(location.href)) return;
+    const createCombo = document.querySelector('.topic-create-button__combo');
+    if (!createCombo) return;
+    if (createCombo.previousElementSibling?.classList?.contains('trae-ext-heat-btn')) return;
+
+    const btn = buildHeatToolbarButton();
+    createCombo.parentElement.insertBefore(btn, createCombo);
+  }
+
+  function updateHeatSortUI() {
+    const th = document.querySelector('.trae-ext-heat-th');
+    const tbBtn = document.querySelector('.trae-ext-heat-btn');
+
+    if (heatSortState) {
+      if (th) {
+        th.classList.add('is-active');
+        th.classList.toggle('is-asc', heatSortState === 'asc');
+        th.classList.toggle('is-desc', heatSortState === 'desc');
+        th.querySelector('button').textContent = heatSortState === 'desc' ? '🌡热度 ↓' : '🌡热度 ↑';
+      }
+      if (tbBtn) {
+        tbBtn.classList.add('trae-ext-heat-active');
+        const label = tbBtn.querySelector('.d-button-label');
+        if (label) label.textContent = heatSortState === 'desc' ? '热度 ↓' : '热度 ↑';
+      }
+    } else {
+      if (th) {
+        th.classList.remove('is-active', 'is-asc', 'is-desc');
+        th.querySelector('button').textContent = '🌡热度';
+      }
+      if (tbBtn) {
+        tbBtn.classList.remove('trae-ext-heat-active');
+        const label = tbBtn.querySelector('.d-button-label');
+        if (label) label.textContent = '热度';
+      }
+    }
+  }
+
+  function rememberRowOrder() {
+    document.querySelectorAll('.topic-list-item[data-topic-id]').forEach((row, i) => {
+      row.dataset.topicIndex = String(i);
+    });
+  }
+
+  function initHeatSort() {
+    heatSortState = getStoredHeatSort();
+    rememberRowOrder();
+    injectHeatSortHeader();
+    injectHeatSortToolbar();
+    if (heatSortState) {
+      setTimeout(() => {
+        sortTopicRows(heatSortState);
+        updateHeatSortUI();
+      }, 150);
+    }
+    updateHeatSortUI();
+
+    let lastUrl = location.pathname + location.search;
+    setInterval(() => {
+      const cur = location.pathname + location.search;
+      if (cur !== lastUrl) {
+        lastUrl = cur;
+        if (heatSortState) {
+          const urlOrder = new URLSearchParams(location.search).get('order');
+          if (urlOrder && urlOrder !== 'heat') {
+            heatSortState = null;
+            setStoredHeatSort(null);
+          }
+        }
+        rememberRowOrder();
+        injectHeatSortHeader();
+        injectHeatSortToolbar();
+        if (heatSortState) {
+          setTimeout(() => {
+            sortTopicRows(heatSortState);
+            updateHeatSortUI();
+          }, 200);
+        } else {
+          updateHeatSortUI();
+        }
+      }
+    }, 500);
   }
 
   /* ---------------- 顶栏按钮 ---------------- */
@@ -407,6 +612,11 @@
       '.trae-ext-temp-fill{display:block;height:100%;border-radius:3px;}' +
       '.trae-ext-spinning svg{animation:trae-ext-spin .6s ease;}' +
       '@keyframes trae-ext-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}' +
+      '.trae-ext-heat-th{position:relative;}' +
+      '.trae-ext-heat-th.is-active{color:var(--tertiary,#3f8fd6);font-weight:600;}' +
+      '.trae-ext-heat-th.is-active::after{content:"";position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:var(--tertiary,#3f8fd6);}' +
+      '.trae-ext-heat-btn{margin-right:8px;}' +
+      '.trae-ext-heat-btn.trae-ext-heat-active{background:var(--tertiary-low-mid,#20507e);color:#fff;border-color:var(--tertiary,#3f8fd6);}' +
       DARK_OVERRIDES;
     (document.head || document.documentElement).appendChild(style);
   }
@@ -534,6 +744,7 @@ html.trae-dark body{background:var(--secondary);}
     parsePreloaded();
     injectHeaderButtons();
     setInterval(injectHeaderButtons, 1500);
+    initHeatSort();
     enhanceVisibleRows();
     watchRows();
     fallbackFetchListJson();
