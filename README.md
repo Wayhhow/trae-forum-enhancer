@@ -2,12 +2,12 @@
 
 # 🌙 TRAE 论坛增强助手
 
-**一键暗黑模式 · 列表数据增强 · 帖子温度计 · 热度排序 · 随机漫游**
+**一键暗黑模式 · 列表数据增强 · 帖子温度计 · 热度排序 · 随机漫游 · 一键回到顶部**
 
 为 [TRAE 官方中文社区](https://forum.trae.cn/) 打造的油猴脚本，让逛论坛更舒服一点。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](CHANGELOG.md)
 [![Discourse](https://img.shields.io/badge/Discourse-2026.x-green.svg)](https://forum.trae.cn/)
 
 [**立即安装**](#-安装) · [功能一览](#-功能一览) · [更新日志](CHANGELOG.md) · [反馈问题](../../issues) · [论坛讨论帖](https://forum.trae.cn/t/topic/177516)
@@ -64,6 +64,14 @@
 - 基于论坛官方 sitemap（约 9 万个话题），能翻到几年前的考古帖
 - 数据源不可用时自动降级到最新帖子列表
 - 点击时骰子会转一圈 🎲
+
+### ⬆️ 一键回到顶部
+
+右下角圆形箭头悬浮按钮，长帖看不完不用再疯狂滚轮：
+
+- 下滑超过约一屏后浮现，回到顶部后自动隐藏
+- 点击平滑滚回顶部，悬停变主题蓝
+- 位置自动避让论坛自带的右下角悬浮图标，明暗模式均适配
 
 ## 📦 安装
 
