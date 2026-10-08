@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         TRAE 论坛增强助手
 // @namespace    https://github.com/Wayhhow
-// @version      0.3.0
-// @description  一键暗黑模式 + 列表页数据增强 + 帖子温度计 + 随机漫游 | © 2026 Wayhhow · MIT License
+// @version      0.4.0
+// @description  一键暗黑模式 + 列表页数据增强 + 帖子温度计 + 随机漫游 + 一键回到顶部 | © 2026 Wayhhow · MIT License
 // @author       Wayhhow
 // @homepage     https://github.com/Wayhhow
 // @source       https://github.com/Wayhhow
@@ -38,6 +38,8 @@
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
   const DICE_SVG =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor" stroke="none"/></svg>';
+  const UP_ARROW_SVG =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>';
 
   const topicCache = new Map();
 
@@ -600,6 +602,30 @@
     button.innerHTML = dark ? SUN_SVG : MOON_SVG;
   }
 
+  /* ---------------- 回到顶部 ---------------- */
+
+  const BACKTOP_SHOW_AT = 400;
+
+  function injectBackToTop() {
+    if (document.querySelector('.trae-ext-backtop')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'trae-ext-backtop';
+    btn.setAttribute('aria-label', '回到顶部');
+    btn.title = '回到顶部';
+    btn.innerHTML = UP_ARROW_SVG;
+    btn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    document.body.appendChild(btn);
+
+    const onScroll = () => {
+      btn.classList.toggle('is-visible', window.scrollY > BACKTOP_SHOW_AT);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
   /* ---------------- 样式 ---------------- */
 
   function injectStyles() {
@@ -617,6 +643,10 @@
       '.trae-ext-heat-th.is-active::after{content:"";position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:var(--tertiary,#3f8fd6);}' +
       '.trae-ext-heat-btn{margin-right:8px;}' +
       '.trae-ext-heat-btn.trae-ext-heat-active{background:var(--tertiary-low-mid,#20507e);color:#fff;border-color:var(--tertiary,#3f8fd6);}' +
+      '.trae-ext-backtop{position:fixed;right:96px;bottom:28px;z-index:1200;width:40px;height:40px;display:flex;align-items:center;justify-content:center;padding:0;border:1px solid var(--primary-low-mid,#dadada);border-radius:50%;background:var(--secondary,#fff);color:var(--primary,#222);cursor:pointer;opacity:0;visibility:hidden;transform:translateY(8px);box-shadow:0 2px 8px rgba(0,0,0,.18);transition:opacity .2s ease,visibility .2s ease,transform .2s ease,background .15s ease,color .15s ease,border-color .15s ease;}' +
+      '.trae-ext-backtop.is-visible{opacity:1;visibility:visible;transform:translateY(0);}' +
+      '.trae-ext-backtop:hover{background:var(--tertiary-low-mid,#20507e);border-color:var(--tertiary,#3f8fd6);color:#fff;}' +
+      '.trae-ext-backtop svg{width:20px;height:20px;pointer-events:none;}' +
       DARK_OVERRIDES;
     (document.head || document.documentElement).appendChild(style);
   }
@@ -743,7 +773,10 @@ html.trae-dark body{background:var(--secondary);}
     if (document.body && document.body.classList.contains('crawler')) return;
     parsePreloaded();
     injectHeaderButtons();
-    setInterval(injectHeaderButtons, 1500);
+    setInterval(() => {
+      injectHeaderButtons();
+      injectBackToTop();
+    }, 1500);
     initHeatSort();
     enhanceVisibleRows();
     watchRows();
