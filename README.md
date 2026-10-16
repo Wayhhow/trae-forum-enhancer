@@ -2,12 +2,12 @@
 
 # 🌙 TRAE 论坛增强助手
 
-**一键暗黑模式 · 列表数据增强 · 帖子温度计 · 热度排序 · 随机漫游 · 一键回到顶部**
+**一键暗黑模式 + 图片亮度自动调节 · 列表数据增强 · 帖子温度计 · 热度排序 · 随机漫游 · 一键回到顶部**
 
 为 [TRAE 官方中文社区](https://forum.trae.cn/) 打造的油猴脚本，让逛论坛更舒服一点。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](CHANGELOG.md)
 [![Discourse](https://img.shields.io/badge/Discourse-2026.x-green.svg)](https://forum.trae.cn/)
 
 [**立即安装**](#-安装) · [功能一览](#-功能一览) · [更新日志](CHANGELOG.md) · [反馈问题](../../issues) · [论坛讨论帖](https://forum.trae.cn/t/topic/177516)
@@ -24,6 +24,7 @@
 
 - 覆盖 60+ 个 Discourse CSS 变量，帖子页、编辑器、弹窗、侧边栏全部适配
 - 背景色采用与 TRAE 品牌一致的深灰色系，不是粗暴的反色
+- **图片亮度自动调节**：白底截图、照片自动降亮一档，头像、表情、Logo 不受影响；鼠标悬停可临时还原原色
 - 偏好自动保存，下次打开自动跟随
 
 ### 📊 列表页数据增强
@@ -112,7 +113,7 @@
 ## ❓ FAQ
 
 **Q：切换暗黑模式后个别图片很刺眼？**
-A：图片本身不受主题影响，属于正常现象；后续版本可能加入图片亮度自动调节。
+A：v0.5.0 起正文图片与 lightbox 大图会自动降亮（`brightness(0.85)`），头像、表情、Logo 不受影响；想看原色，鼠标悬停图片即可临时还原。本身偏暗的截图也会被略微压暗，悬停查看原色即可。
 
 **Q：列表页数据偶尔显示不出来？**
 A：数据来自列表接口，网络波动时可能延迟 1-2 秒出现；刷新页面即可。

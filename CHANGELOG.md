@@ -2,6 +2,16 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.5.0] - 2026-10-16
+
+### 新增
+- **图片亮度自动调节**：暗黑模式下白底截图、照片不再刺眼（[README FAQ](README.md#-faq) 中的承诺已兑现）
+  - 正文图片、一图流、lightbox 大图预览、编辑器预览图统一降亮：`filter: brightness(0.85) saturate(0.95)`，并以 `0.25s` 过渡平滑生效
+  - 鼠标悬停图片临时还原原色，方便查看暗色截图细节与真实色彩
+  - 头像（`img.avatar`）、emoji（`img.emoji`）、站点 Logo 等标识类图片严格排除，不受影响
+  - 纯 CSS 实现：规则挂在 `html.trae-dark` 作用域下，零 JS、零 MutationObserver 开销，SPA 动态插入的图片自动生效；切回亮色模式 filter 自动消失
+  - 强度为固定档位，可调档位留待后续版本
+
 ## [0.4.0] - 2026-10-09
 
 ### 新增

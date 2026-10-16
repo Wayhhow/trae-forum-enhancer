@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         TRAE 论坛增强助手
 // @namespace    https://github.com/Wayhhow
-// @version      0.4.0
-// @description  一键暗黑模式 + 列表页数据增强 + 帖子温度计 + 随机漫游 + 一键回到顶部 | © 2026 Wayhhow · MIT License
+// @version      0.5.0
+// @description  一键暗黑模式 + 图片亮度自动调节 + 列表页数据增强 + 帖子温度计 + 随机漫游 + 一键回到顶部 | © 2026 Wayhhow · MIT License
 // @author       Wayhhow
 // @homepage     https://github.com/Wayhhow
 // @source       https://github.com/Wayhhow
@@ -765,6 +765,18 @@ html.trae-dark{
   --primary-low-mid-or-secondary-low:var(--primary-low-mid);
 }
 html.trae-dark body{background:var(--secondary);}
+/* 图片亮度自动调节：暗黑下调暗白底截图/照片，头像、emoji 不受影响，悬停还原原色 */
+html.trae-dark .cooked img:not(.emoji):not(.avatar),
+html.trae-dark .lightbox-wrapper img:not(.emoji):not(.avatar),
+html.trae-dark .d-editor-preview img{
+  filter:brightness(.85) saturate(.95);
+  transition:filter .25s ease;
+}
+html.trae-dark .cooked img:not(.emoji):not(.avatar):hover,
+html.trae-dark .lightbox-wrapper img:not(.emoji):not(.avatar):hover,
+html.trae-dark .d-editor-preview img:hover{
+  filter:none;
+}
 `;
 
   /* ---------------- 启动 ---------------- */
