@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         TRAE 论坛增强助手
 // @namespace    https://github.com/Wayhhow
-// @version      0.5.0
-// @description  一键暗黑模式 + 图片亮度自动调节 + 列表页数据增强 + 帖子温度计 + 随机漫游 + 一键回到顶部 | © 2026 Wayhhow · MIT License
+// @version      0.6.7-exp
+// @description  一键暗黑模式 + 图片亮度自动调节 + 列表页数据增强 + 帖子温度计 + 随机漫游 + 一键回到顶部 + 【实验】情绪标记（😄😠😢😅🆘）与今日情绪面板 | © 2026 Wayhhow · MIT License
 // @author       Wayhhow
 // @homepage     https://github.com/Wayhhow
 // @source       https://github.com/Wayhhow
@@ -277,6 +277,8 @@
 
   function enhanceVisibleRows() {
     document.querySelectorAll('.topic-list-item[data-topic-id]').forEach(enhanceRow);
+    Emotion.enhanceRows();
+    Emotion.ensurePanel();
     rememberRowOrder();
     injectHeatSortHeader();
     injectHeatSortToolbar();
@@ -574,6 +576,8 @@
     const darkItem = document.createElement('li');
     darkItem.appendChild(darkButton);
     icons.appendChild(darkItem);
+    icons.appendChild(Emotion.buildToggleBtn());
+    Emotion.updateToggleBtn();
     updateToggleButton();
   }
 
@@ -647,6 +651,27 @@
       '.trae-ext-backtop.is-visible{opacity:1;visibility:visible;transform:translateY(0);}' +
       '.trae-ext-backtop:hover{background:var(--tertiary-low-mid,#20507e);border-color:var(--tertiary,#3f8fd6);color:#fff;}' +
       '.trae-ext-backtop svg{width:20px;height:20px;pointer-events:none;}' +
+      '.trae-ext-emotion-toggle{font-size:16px;color:var(--header_primary,#333);}' +
+      '.trae-ext-emotion-toggle.is-off{filter:grayscale(1);opacity:.45;}' +
+      '.trae-ext-emotion{display:inline-block;width:1.35em;text-align:center;font-size:14px;line-height:1;margin-right:3px;vertical-align:0.1em;font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif;}' +
+      '#trae-ext-emotion-panel{position:fixed;left:16px;bottom:28px;z-index:1200;max-width:min(430px,92vw);font-size:13px;color:var(--primary,#222);}' +
+      '#trae-ext-emotion-panel .eep-bar{padding:7px 12px;border:1px solid var(--primary-low-mid,#dadada);border-radius:16px;background:var(--secondary,#fff);color:var(--primary,#222);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:12.5px;}' +
+      '#trae-ext-emotion-panel.is-open{display:flex;flex-direction:column-reverse;background:var(--secondary,#fff);border:1px solid var(--primary-low-mid,#dadada);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.2);}' +
+      '#trae-ext-emotion-panel.is-open .eep-body{max-height:46vh;}' +
+      '#trae-ext-emotion-panel .eep-head{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--primary-low,#e9e9e9);font-weight:600;}' +
+      '#trae-ext-emotion-panel .eep-title{flex:1;font-size:12.5px;}' +
+      '#trae-ext-emotion-panel .eep-refresh,#trae-ext-emotion-panel .eep-fold{border:none;background:none;cursor:pointer;font-size:14px;color:var(--primary-medium,#666);padding:2px 6px;}' +
+      '#trae-ext-emotion-panel .eep-body{padding:8px 12px;max-height:46vh;overflow:auto;}' +
+      '#trae-ext-emotion-panel .eep-counts{display:flex;flex-wrap:wrap;gap:6px 12px;margin-bottom:6px;}' +
+      '#trae-ext-emotion-panel .eep-item.is-zero{opacity:.55;}' +
+      '#trae-ext-emotion-panel .eep-group{margin-top:6px;}' +
+      '#trae-ext-emotion-panel .eep-gt{font-weight:600;margin-bottom:2px;}' +
+      '#trae-ext-emotion-panel .eep-group ul{margin:0;padding-left:18px;}' +
+      '#trae-ext-emotion-panel .eep-group li{margin:1px 0;}' +
+      '#trae-ext-emotion-panel .eep-group a{color:var(--tertiary,#3f8fd6);text-decoration:none;}' +
+      '#trae-ext-emotion-panel .eep-empty{color:var(--primary-medium,#666);}' +
+      '#trae-ext-emotion-panel .eep-scope{font-size:11.5px;color:var(--primary-medium,#666);margin-bottom:6px;}' +
+      '@media (max-width:700px){#trae-ext-emotion-panel{left:8px;bottom:16px;max-width:92vw;}#trae-ext-emotion-panel .eep-body{max-height:40vh;}}' +
       DARK_OVERRIDES;
     (document.head || document.documentElement).appendChild(style);
   }
@@ -777,7 +802,423 @@ html.trae-dark .lightbox-wrapper img:not(.emoji):not(.avatar):hover,
 html.trae-dark .d-editor-preview img:hover{
   filter:none;
 }
+/* 夜间文字角色修正（机制性）：
+   有些组件把“文字色”绑定到背景系/低明度变量，纯变量覆盖天然管不到，定点重绑。
+   原则：只调明度/重绑到文字系变量，不碰背景变量；状态色保色相、提明度。 */
+html.trae-dark{
+  /* 纯文字用途的变量：直接在夜间改值（这些变量只用于 color，不涉及边框/背景） */
+  --d-post-control-text-color:var(--primary-medium);   /* 帖子操作区文字：原 #4a4b52 ≈2.03 */
+  --d-post-control-icon-color:var(--primary-medium);
+  /* hljs 语法高亮：站点只给了亮色 token 色板，暗底下关键字/字符串/标题全糊（实测 2.03~3.18） */
+  --hljs-keyword:#8ab4ff;   /* 原 #015692 ≈2.03 */
+  --hljs-attr:#7dcfff;      /* 原 #015692 ≈2.3 */
+  --hljs-string:#9ece6a;    /* 原 #54790d ≈3.04 */
+  --hljs-title:#e0af68;     /* 原 #b75501 ≈3.18 */
+  --hljs-name:#e0af68;
+  --hljs-punctuation:#a9b2c3; /* 原 #535a60 ≈2.51 */
+  --hljs-addition:#9ece6a;
+  --hljs-variable:#c0caf5;
+  --hljs-symbol:#c0caf5;
+}
+html.trae-dark .chat-message-info__username__name{ /* 私信发送者用户名：原误用背景系 var(--secondary-low)，夜间 #222327 on #18191c ≈1.06:1 */
+  color:var(--primary-high);
+}
+html.trae-dark .reactions-counter{ /* 表情回应计数：原 var(--primary-low-mid) #4a4b52 ≈2.03:1 */
+  color:var(--primary-medium);
+}
+html.trae-dark .topic-post-visited-message{ /* 「上次访问」分隔线：原 --danger-medium 暗红 ≈2.82:1，保色相提明度 */
+  color:#f08a70;
+}
+/* 误用极浅灰/背景系变量作文字（个人主页元信息标签实测 1.28:1，用户截图那处） */
+html.trae-dark .user-main .about .secondary dt,
+html.trae-dark .user-main .about dt{
+  color:var(--primary-medium);
+}
+/* chat 同族：线索标题/旗帜/建频道提示（同绑 --secondary-low / --secondary-medium） */
+html.trae-dark .chat-thread__heading-title,
+html.trae-dark .chat-thread__heading-icon{ color:var(--primary-high); }
+html.trae-dark .chat-modal-create-channel__hint,
+html.trae-dark .chat-message-info__flag{ color:var(--primary-medium); }
+/* danger-medium 系文字（保色相提明度）：「有更新」提示、搜索页警示 */
+html.trae-dark #list-area .unseen,
+html.trae-dark .search-container .warning{ color:#f08a70; }
 `;
+
+  /* ---------------- 情绪标记 + 今日情绪面板（实验） ----------------
+   * C1 结构+句式规则（非裸词表）+ 正面弱信号叠加。
+   * 拿不准一律「中」不显示。开关：头部 😄 按钮，或 localStorage tfe-emotion-enabled=0。
+   * 复用脚本已有的 MutationObserver：enhanceRows 由 enhanceVisibleRows 调用，不另开观察者。
+   */
+
+  const Emotion = (function () {
+    const POS_STRONG = ['厉害','给力','吹一波','真香','丝滑','惊喜','完美','优秀','赞','牛逼','棒','强得','太强','好用','不错','满意','顺手','清爽','感谢','谢谢','漂亮','根治','起飞'];
+    const NEG_STRONG = ['垃圾','恶心','愤怒','气死','离谱','太差','受不了','忍不了','烂','废物'];
+    const NEG_SOFT = ['失望','难受','愁','担心','吐槽','后悔','踩坑','劝退','翻车','无语','炸'];
+    const ISSUE_WORDS = ['报错','崩溃','卡死','卡顿','白屏','黑屏','闪退','失败','无法','异常','超时','没反应','进不去','连不上','打不开','消失','不提示','不工作','不管用','不好用','没了','降低','吃掉','吃完','拖后腿','卡得要死','卡爆','crash','crashing','error','fail','failed','broken','unusable','slow'];
+    const NEGATE_NEAR = ['不','没','无','别','未'];
+    const WEAK_POS = ['省事','省心','高效','彩蛋','神器','惊喜','好看','提升','效率','顺滑','方便'];
+
+    const EMOJI = { '喜': '😄', '怒': '😠', '哀': '😢', '反讽': '😅', '求助': '🆘' };
+    const TIP = {
+      '喜': '情绪：偏正面（结构规则判定，仅供参考）',
+      '怒': '情绪：激烈负面（仅供参考）',
+      '哀': '情绪：偏负面（仅供参考）',
+      '反讽': '疑似反讽/正话反说（仅供参考）',
+      '求助': '求助帖',
+    };
+
+    function hasAny(t, arr) { return arr.some((w) => t.indexOf(w) !== -1); }
+    function nearNegated(t, idx) {
+      const pre = t.slice(Math.max(0, idx - 2), idx);
+      return NEGATE_NEAR.some((n) => pre.indexOf(n) !== -1);
+    }
+    function isRequest(t) {
+      if (/希望.{0,10}(别|不要|别再|怕)/.test(t)) return false;
+      return /^(希望|能不能|可不可以|能否|建议|求|请问|想问|想咨询|小白|请教)/.test(t)
+        || /(希望|能不能|可不可以|能否|建议).{0,12}(支持|加|优化|改进|出|做|开放|提供)/.test(t)
+        || /(有没有|是否|是不是).{0,16}(吗|？|\?)$/.test(t)
+        || (/(怎么办|怎么解|如何|咋)/.test(t) && /(吗|？|\?|求助)/.test(t));
+    }
+    function isHelpPost(t, cat) {
+      return /求助|求问|求指导|怎么办|怎么解|有没有人.{0,6}(知道|遇到|试过|成功|碰到)/.test(t) || /求助/.test(cat);
+    }
+    function isSarcasm(t) {
+      if (/(好|棒|稳定|厉害|优秀|贴心|高效)(到|得)(我|你|它|直接)?/.test(t) && hasAny(t, ISSUE_WORDS.concat(['重启','戒','吃','疯','死']))) return true;
+      if (/(感谢|谢谢|成功|好家伙).{0,12}(戒|成功让我|再也不用|逼|劝退)/.test(t)) return true;
+      if (/太(好|棒|稳定|厉害)了/.test(t) && /(重启|白屏|崩|卡|失败)/.test(t)) return true;
+      if (/(真|太|可)?(厉害|棒|牛|优秀|强大).{0,10}(能|可以)?(把)?.{0,12}(吃完|吃掉|占满|耗光|搞崩|跑满)/.test(t)) return true;
+      if (/🙃|😅/.test(t)) return true;
+      return false;
+    }
+    function isQuoting(t) {
+      return /(有人说|听说|看到|好多人|大家都说|别人|群里|论坛里).{0,12}(说|讲|提|反馈|吐槽)/.test(t);
+    }
+    function isRhetorical(t) {
+      return /(这也叫|这叫|算什么|什么决策|谁想的|怎么想的|是feature|是特性|就我一个)/.test(t)
+        || (/(？|\?)/.test(t) && hasAny(t, ISSUE_WORDS));
+    }
+    function isDoubleNegation(t) {
+      if (!/(不是不|不能说没|并非不|算不上不)/.test(t)) return false;
+      if (/(压根|根本|简直)(就)?(没法|不能|不行|用不了)/.test(t)) return false;
+      return true;
+    }
+
+    // 输入 { title, category, solved }；输出 { label, reason }；label='中' 表示不显示
+    function score(input) {
+      const t = String(input.title || '').trim();
+      const cat = input.category || '';
+      if (!t) return { label: '中', reason: '空输入' };
+      if (input.solved) return { label: '中', reason: '已有采纳答案，负面压制' };
+      if (/求助|求问|求指导|求大佬/.test(t)) return { label: '求助', reason: '显式求助词' };
+      if (isRequest(t)) return { label: '中', reason: '请求/建议句式，不算负面情绪' };
+      if (isHelpPost(t, cat)) return { label: '求助', reason: '问题求助分类' };
+      if (isWorry(t)) return { label: '哀', reason: '担忧/唱衰句式' };
+      if (isSarcasm(t)) return { label: '反讽', reason: '正话反说句式' };
+      if (isDoubleNegation(t)) return { label: '中', reason: '双重否定，按中性处理' };
+      if (isQuoting(t) && hasAny(t, ISSUE_WORDS.concat(NEG_SOFT))) return { label: '中', reason: '转述语境，作者本人非负面' };
+      if (isRhetorical(t)) return { label: '哀', reason: '疑问式吐槽' };
+
+      const pivot = t.match(/(但|但是|可是|然而|就是)(.{1,30})$/);
+      if (pivot) {
+        const tail = pivot[2];
+        if (/(卡|慢|难|差|坑|气|烦|bug|BUG|Bug)(得|到)?(要死|要命|爆|吐|疯|炸|多|惨)?/.test(tail) && !/(快|好|爽|稳|顺|支持|棒|喜欢)/.test(tail)) {
+          return { label: '哀', reason: '转折后句为吐槽' };
+        }
+        if (/(支持|喜欢|赞|好用|不错|稳定|快|顺)/.test(tail)) return { label: '喜', reason: '转折后句为肯定' };
+      }
+
+      if (/(强|好|快|牛|美|稳)得(离谱|夸张|逆天)/.test(t)) return { label: '喜', reason: '程度副词褒用' };
+      const strong = NEG_STRONG.find((w) => t.indexOf(w) !== -1);
+      if (strong && !nearNegated(t, t.indexOf(strong))) return { label: '怒', reason: '强烈负面词：' + strong };
+      if (/(压根|根本|简直|实在)(就)?(没法|用不了|不能用|不行)/.test(t)) return { label: '哀', reason: '强调式后果：没法用' };
+      const soft = NEG_SOFT.find((w) => t.indexOf(w) !== -1);
+      if (soft) return { label: '哀', reason: '软化负面词：' + soft };
+
+      const issue = ISSUE_WORDS.find((w) => t.indexOf(w) !== -1);
+      if (issue) {
+        const suppressed = nearNegated(t, t.indexOf(issue)) || /(机制|原理|设计|讨论|科普|教程|指南|日志|排查|监控|告警)/.test(t);
+        if (!suppressed) {
+          if (/[a-zA-Z]/.test(issue)) return { label: '哀', reason: '英文问题词「' + issue + '」' };
+          if (/Bug|反馈/.test(cat)) return { label: '哀', reason: '「' + issue + '」+ Bug反馈分类印证' };
+          if (/(我|我的|一直|突然|直接|连续|又)/.test(t)) return { label: '哀', reason: '「' + issue + '」+ 第一人称/后果句式' };
+        }
+      }
+
+      if (/(修得|补得|改得|做得|优化得)(真|好|太)?(狠|漂亮|绝|稳|到位)/.test(t)
+        || /(修复|解决|搞定)后.{0,8}(稳定|流畅|正常|好用|丝滑|快)/.test(t)) {
+        return { label: '喜', reason: '贬词褒用/根治句式' };
+      }
+      const pos = POS_STRONG.find((w) => t.indexOf(w) !== -1);
+      if (pos && !/^(希望|能不能|建议|求)/.test(t) && !/(吗|？|\?)$/.test(t) && !nearNegated(t, t.indexOf(pos))) {
+        return { label: '喜', reason: '夸赞信号：' + pos };
+      }
+
+      /* ---- 弱信号层：只处理上面判「中」的 ---- */
+      if (/(偷|扣)(了)?(我|我的)/.test(t)) return { label: '哀', reason: '投诉语境：偷/扣+第一人称' };
+      if (/太拉了|拉胯|拉了|巨额.{0,4}(消耗|损失|浪费)/.test(t)) return { label: '哀', reason: '负面弱信号' };
+      // R11 晒福利/奖励喜悦：福利名词 + 非疑问 + 无负面语境
+      if (!/(吗|？|\?)$/.test(t) && !/官方|福利活动/.test(cat)
+        && /(快递|奖励|礼物|周边|礼盒|奖品|中奖|抽中)/.test(t)
+        && !/(报错|崩溃|失败|无法|问题|没收到|没到|丢失|丢了|少了)/.test(t)) {
+        return { label: '喜', reason: '福利/奖励分享语境' };
+      }
+      if (!/(吗|？|\?)$/.test(t) && !/官方|福利活动/.test(cat)) {
+        let wp = 0;
+        const hits = [];
+        if (/分享(一下|几个|我的|下|经验|这套)/.test(t) && /(系统|技巧|经验|项目|小程序|工具|作品|自动化|玩法|思路)/.test(t)) { wp += 2; hits.push('分享+作品'); }
+        else if (/分享(一下|几个|我的|下)/.test(t)) { wp++; hits.push('分享'); }
+        if (/^【[^】]*(结营作业|案例|作品|测评|实测|体验|技巧)[^】]*】/.test(t)) { wp++; hits.push('作品/测评标签'); }
+        if (/(上线了|发布了|开源了|搞定了|补齐了|完成了|做出来了|跑通了)/.test(t)) { wp++; hits.push('完成态'); }
+        const w = WEAK_POS.find((x) => t.indexOf(x) !== -1);
+        if (w && !nearNegated(t, t.indexOf(w))) { wp++; hits.push('弱正面:' + w); }
+        if (/(欢迎体验|欢迎试用|晒一晒|晒一下|晒晒)/.test(t)) { wp++; hits.push('展示邀请'); }
+        if (/案例与作品|技巧分享/.test(cat) && !/(报错|崩溃|失败|无法|问题|bug)/i.test(t)) { wp++; hits.push('作品/技巧分类'); }
+        if (wp >= 2) return { label: '喜', reason: '正面弱信号×' + wp + '：' + hits.join('、') };
+      }
+      return { label: '中', reason: '无置信信号，兜底不显示' };
+    }
+
+    function isWorry(t) { return /(别被|怕被|担心|生怕|拖后腿|毁掉|搞砸|黄了|走下坡路)/.test(t); }
+
+    /* ---- 开关状态：统一键 tfe-emotion-enabled（'1'开/'0'关），迁移旧键 tfe-emotion-off ---- */
+    const ON_KEY = 'tfe-emotion-enabled';
+    const LEGACY_OFF_KEY = 'tfe-emotion-off';
+    function migrateKey() {
+      try {
+        if (localStorage.getItem(ON_KEY) !== null) return;
+        const old = localStorage.getItem(LEGACY_OFF_KEY);
+        if (old !== null) {
+          localStorage.setItem(ON_KEY, old === '1' ? '0' : '1'); // 旧键语义是"关闭"→取反
+          localStorage.removeItem(LEGACY_OFF_KEY);
+        }
+      } catch (e) { /* 隐私模式忽略 */ }
+    }
+    migrateKey();
+    function isOn() {
+      try { return localStorage.getItem(ON_KEY) !== '0'; } catch (e) { return true; }
+    }
+    function setEnabled(on) {
+      try { localStorage.setItem(ON_KEY, on ? '1' : '0'); } catch (e) { /* ignore */ }
+      updateToggleBtn();
+      if (on) {
+        enhanceRows();
+        bootPanel(false);
+      } else {
+        // 立即清除全部标记与面板（不发任何请求）
+        document.querySelectorAll('.' + MARK_CLS).forEach((el) => el.remove());
+        document.querySelectorAll('.topic-list-item[data-emotion-done]').forEach((el) => delete el.dataset.emotionDone);
+        const p = panelEl();
+        if (p) p.remove();
+      }
+    }
+    function updateToggleBtn() {
+      const btn = document.querySelector('.trae-ext-emotion-toggle');
+      if (!btn) return;
+      const on = isOn();
+      btn.classList.toggle('is-off', !on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.title = '情绪分析：' + (on ? '开（点击关闭）' : '关（点击开启）');
+      btn.setAttribute('aria-label', btn.title);
+    }
+    function buildToggleBtn() {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'icon btn-flat trae-ext-btn trae-ext-emotion-toggle';
+      btn.textContent = '😄';
+      btn.addEventListener('click', () => setEnabled(!isOn()));
+      const li = document.createElement('li');
+      li.appendChild(btn);
+      return li;
+    }
+
+    /* ---- 列表行标记 ---- */
+    const MARK_CLS = 'trae-ext-emotion';
+    function off() { return !isOn(); }
+    function rowContext(row) {
+      const catEl = row.querySelector('.badge-category__name, .badge-category');
+      const statuses = row.querySelector('.topic-statuses');
+      const topic = topicCache.get(row.dataset.topicId);
+      return {
+        category: catEl ? catEl.textContent.trim() : '',
+        solved: (topic && topic.solved) || /已解决|solved|✓/.test(statuses ? statuses.innerHTML : ''),
+      };
+    }
+    function markRow(row) {
+      if (row.dataset.emotionDone) return;
+      row.dataset.emotionDone = '1';
+      const title = row.querySelector('a.title');
+      if (!title || !title.parentElement) return;
+      const ctx = rowContext(row);
+      const r = score({ title: title.textContent, category: ctx.category, solved: ctx.solved });
+      if (r.label === '中') return;
+      const s = document.createElement('span');
+      s.className = MARK_CLS;
+      s.setAttribute('role', 'img');
+      s.setAttribute('aria-label', TIP[r.label]);
+      s.title = TIP[r.label] + '｜' + r.reason;
+      s.textContent = EMOJI[r.label];
+      title.parentElement.insertBefore(s, title);
+    }
+    function enhanceRows() {
+      if (off()) return;
+      document.querySelectorAll('.topic-list-item[data-topic-id]').forEach(markRow);
+    }
+
+    /* ---- 今日情绪面板 ---- */
+    // 面板自己的列表页判定：不复用 LIST_URL_PATTERN（它有 '/top'⊂'/topic' 误匹配，且漏 '/' 与 '/categories'）
+    function isListPage() {
+      const p = location.pathname;
+      return p === '/' || /^\/(latest|new|unread|categories|c\/|tag\/|tags\/)/.test(p) || /^\/top($|[/?])/.test(p);
+    }
+    const PANEL_KEY = 'tfeEmotionDailyV2'; // V2：全量翻页口径，避免读到 V1（仅 30 帖）的旧缓存
+    const PANEL_TTL = 30 * 60 * 1000;
+    const COLLAPSE_KEY = 'tfe-emotion-panel-collapsed';
+    const LABELS = ['喜', '哀', '怒', '反讽', '求助'];
+
+    function todayStart() { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
+    function loadCached() {
+      try {
+        const c = JSON.parse(sessionStorage.getItem(PANEL_KEY) || 'null');
+        if (c && Date.now() - c.ts < PANEL_TTL && c.day === new Date().toDateString()) return c;
+      } catch (e) { /* ignore */ }
+      return null;
+    }
+    function saveCached(data) {
+      try { sessionStorage.setItem(PANEL_KEY, JSON.stringify(Object.assign({ ts: Date.now(), day: new Date().toDateString() }, data))); } catch (e) { /* ignore */ }
+    }
+    const MAX_PAGES = 5;   // 硬上限：5 页 / 150 帖
+    const PAGE_GAP = 350;  // 串行翻页间隔，避免触发限流
+    function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+    function fetchDaily() {
+      const start = todayStart();
+      return fetch('/categories.json').then((r) => r.json()).catch(() => null).then((cats) => {
+        const catMap = {};
+        if (cats && cats.category_list) cats.category_list.categories.forEach((c) => { catMap[c.id] = c.name; });
+        const counts = { 中: 0 };
+        LABELS.forEach((l) => { counts[l] = 0; });
+        const groups = {};
+        LABELS.forEach((l) => { groups[l] = []; });
+        let total = 0, pages = 0, truncated = false;
+        const seenIds = new Set(); // 翻页期间新帖插入会导致行错位，按 id 去重防重复计数
+        return (function next(p) {
+          return fetch('/latest.json?order=created&no_definitions=true&page=' + p)
+            .then((r) => r.json())
+            .then((d) => {
+              const ts = (d.topic_list && d.topic_list.topics) || [];
+              pages++;
+              let older = false;
+              ts.forEach((t) => {
+                if (seenIds.has(t.id)) return;
+                seenIds.add(t.id);
+                if (Date.parse(t.created_at) >= start) {
+                  total++;
+                  const r2 = score({ title: t.title, category: catMap[t.category_id] || '', solved: !!t.has_accepted_answer });
+                  counts[r2.label]++;
+                  if (r2.label !== '中' && groups[r2.label].length < 5) groups[r2.label].push({ id: t.id, title: t.title });
+                } else older = true;
+              });
+              // 出现早于今日 0 点的帖 → 当天已覆盖完整；否则串行翻下一页
+              if (!older && ts.length === 30 && pages < MAX_PAGES) return sleep(PAGE_GAP).then(() => next(p + 1));
+              truncated = !older && ts.length === 30; // 到上限仍有当天帖 → 截断
+              const data = { counts, total, pages, truncated, groups };
+              saveCached(data);
+              return data;
+            });
+        })(0);
+      });
+    }
+
+    function panelEl() { return document.getElementById('trae-ext-emotion-panel'); }
+    function renderBar(text, loading) {
+      let p = panelEl();
+      if (!p) {
+        p = document.createElement('div');
+        p.id = 'trae-ext-emotion-panel';
+        document.body.appendChild(p);
+      }
+      p.className = 'is-collapsed';
+      p.innerHTML = '<button type="button" class="eep-bar" aria-label="今日情绪面板">' + text + '</button>';
+      if (!loading) p.querySelector('.eep-bar').addEventListener('click', () => setCollapsed(false));
+    }
+    function renderPanel(data) {
+      let p = panelEl();
+      if (!p) {
+        p = document.createElement('div');
+        p.id = 'trae-ext-emotion-panel';
+        document.body.appendChild(p);
+      }
+      p.className = 'is-open';
+      const pct = (n) => (data.total ? Math.round((n / data.total) * 100) : 0);
+      let html = '<div class="eep-head"><span class="eep-title">📊 今日情绪（' + data.total + ' 帖 · 标题级粗判）</span>'
+        + '<button type="button" class="eep-refresh" title="重新统计">↻</button>'
+        + '<button type="button" class="eep-fold" title="收起">▾</button></div><div class="eep-body">'
+        + '<div class="eep-scope">' + (data.truncated
+          ? '⚠ 仅统计最新 ' + data.total + ' 条（翻 ' + data.pages + ' 页），今日发帖更多，未全覆盖'
+          : '✓ 统计今日 00:00 至今全部 ' + data.total + ' 帖（翻 ' + data.pages + ' 页，按 topic id 去重，含当天创建的置顶帖），未遗漏') + '</div>';
+      if (!data.total) {
+        html += '<div class="eep-empty">今天还没有新帖，晚点再来看看。</div>';
+      } else {
+        html += '<div class="eep-counts">';
+        LABELS.forEach((l) => {
+          html += '<span class="eep-item' + (data.counts[l] ? '' : ' is-zero') + '" title="' + (TIP[l] || l) + '">' + EMOJI[l] + ' ' + data.counts[l] + '（' + pct(data.counts[l]) + '%）</span>';
+        });
+        html += '<span class="eep-item is-zero" title="拿不准的一律不标">· 中性 ' + data.counts['中'] + '（' + pct(data.counts['中']) + '%）</span></div>';
+        LABELS.forEach((l) => {
+          if (!data.groups[l].length) return;
+          html += '<div class="eep-group"><div class="eep-gt">' + EMOJI[l] + ' ' + l + '</div><ul>';
+          data.groups[l].forEach((g) => {
+            html += '<li><a href="/t/topic/' + g.id + '">' + g.title.replace(/</g, '&lt;').slice(0, 40) + '</a></li>';
+          });
+          html += '</ul></div>';
+        });
+      }
+      html += '</div>';
+      p.innerHTML = html;
+      p.querySelector('.eep-fold').addEventListener('click', () => setCollapsed(true));
+      p.querySelector('.eep-refresh').addEventListener('click', () => {
+        try { sessionStorage.removeItem(PANEL_KEY); } catch (e) { /* ignore */ }
+        bootPanel(true);
+      });
+    }
+    function barText(data) {
+      return '📊 今日情绪 ' + (data && data.total ? data.total + ' 帖' + (data.truncated ? '（截断）' : '') + ' · 点击查看' : '· 点击查看');
+    }
+    function setCollapsed(c) {
+      try { localStorage.setItem(COLLAPSE_KEY, c ? '1' : '0'); } catch (e) { /* ignore */ }
+      const data = loadCached();
+      if (c) renderBar(barText(data), false);
+      else if (data) renderPanel(data);
+      else bootPanel(false);
+    }
+    function bootPanel(force) {
+      if (off()) return; // 关闭时连面板的翻页请求也不发
+      if (!isListPage()) return;
+      const cached = force ? null : loadCached();
+      const collapsed = (() => { try { return localStorage.getItem(COLLAPSE_KEY) !== '0'; } catch (e) { return true; } })();
+      if (cached) { collapsed ? renderBar(barText(cached), false) : renderPanel(cached); return; }
+      renderBar('📊 今日情绪统计中…', true);
+      fetchDaily()
+        .then((data) => { collapsed ? renderBar(barText(data), false) : renderPanel(data); })
+        .catch(() => {
+          const p = panelEl();
+          if (p) {
+            p.className = 'is-collapsed';
+            p.innerHTML = '<button type="button" class="eep-bar">📊 今日情绪加载失败 · 点击重试</button>';
+            p.querySelector('.eep-bar').addEventListener('click', () => bootPanel(true));
+          }
+        });
+    }
+
+    // 自愈：路由/DOM 变化后由 enhanceVisibleRows 调用（复用同一 MutationObserver，零新增监听）
+    // 列表页且开关开 → 确保面板存在（幂等，有缓存不发请求）；离开列表页或关闭 → 移除
+    function ensurePanel() {
+      const p = panelEl();
+      if (!isListPage() || off()) { if (p) p.remove(); return; }
+      if (!p) bootPanel(false);
+    }
+
+    return { enhanceRows, score, bootPanel, buildToggleBtn, updateToggleBtn, isOn, ensurePanel };
+  })();
 
   /* ---------------- 启动 ---------------- */
 
@@ -793,6 +1234,7 @@ html.trae-dark .d-editor-preview img:hover{
     enhanceVisibleRows();
     watchRows();
     fallbackFetchListJson();
+    Emotion.bootPanel(false);
   }
 
   hookFetch();
