@@ -7,7 +7,7 @@
 为 [TRAE 官方中文社区](https://forum.trae.cn/) 打造的油猴脚本，让逛论坛更舒服一点。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.6.7--exp-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.6.9--exp-blue.svg)](CHANGELOG.md)
 [![Discourse](https://img.shields.io/badge/Discourse-2026.x-green.svg)](https://forum.trae.cn/)
 
 [**立即安装**](#-安装) · [功能一览](#-功能一览) · [更新日志](CHANGELOG.md) · [反馈问题](../../issues) · [论坛讨论帖](https://forum.trae.cn/t/topic/177516)
@@ -108,6 +108,8 @@ Tampermonkey 面板 →「添加新脚本」→ 粘贴 [`trae-forum-enhancer.use
 | 0.6.5-exp | 夜间对比度修复第一批（chat 用户名/回应计数/上次访问） |
 | 0.6.6-exp | 夜间修复第二批（个人主页标签/帖子操作区/代码高亮） |
 | 0.6.7-exp | 面板自愈（修裸首页与分类页不挂载；帖子页不再误挂） |
+| 0.6.8-exp | （未发布）情绪判定分层：叙述/复盘口吻不再判"哀"；因混入孤立字面量 `32` 致脚本整体不执行，已撤回 |
+| 0.6.9-exp | 修复 0.6.8 的致命错误（恢复列表识别、面板与标记），情绪分层随本版生效 |
 
 ## 🧪 开发与测试
 
