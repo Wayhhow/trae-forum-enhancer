@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TRAE 论坛增强助手
 // @namespace    https://github.com/Wayhhow
-// @version      0.6.7-exp
+// @version      0.6.9-exp
 // @description  一键暗黑模式 + 图片亮度自动调节 + 列表页数据增强 + 帖子温度计 + 随机漫游 + 一键回到顶部 + 【实验】情绪标记（😄😠😢😅🆘）与今日情绪面板 | © 2026 Wayhhow · MIT License
 // @author       Wayhhow
 // @homepage     https://github.com/Wayhhow
@@ -12,7 +12,6 @@
 // @grant        none
 // @license      MIT
 // ==/UserScript==
-
 /*
  * Copyright (c) 2026 Wayhhow <https://github.com/Wayhhow>
  * Released under the MIT License.
@@ -903,6 +902,43 @@ html.trae-dark .search-container .warning{ color:#f08a70; }
       return true;
     }
 
+    /* 软负面词分层（v0.6.8）
+     * 背景：v0.6.7 把 11 个词统一当作「出现即负面」，464754 的「附全部翻车记录」被误判 😢。
+     * 结构结论：这些词在标题里的句法角色不同，不能共用一条规则。
+     * - NEG_HARD：表达作者自身状态，保留「出现即负面」。
+     * - NEG_NARR：在论坛里多为经历叙述（翻车记录 / 从翻车到爆款 / 别人翻车 / 专治翻车），
+     *   默认不构成负面证据；只有出现「产品主语」或「后果句」时才判哀。
+     */
+    const NEG_HARD = ['失望', '难受', '愁', '担心', '吐槽', '后悔', '劝退', '无语', '炸'];
+    const NEG_NARR = ['翻车', '踩坑', '踩雷'];
+    const NARR_META_AFTER = /^(记录|实录|现场|合集|日记|经历|复盘|全过程|经过|清单|集锦|观测|无数|到|变成|变|逆袭|爆款)/;
+    const THIRD_PRE = /(看到|围观|别人|他人|同事|群友|有人|大家|朋友|集体|行业|厂商|制造业).{0,8}$/;
+    const SOLVE_PRE = /(专治|避免|防止|告别|远离|拒绝|根治).{0,10}$/;
+    const SELF_PRE = /(^|[^A-Za-z])我(们)?(也|又|第一次|差点|直接|居然|竟然|今天|昨晚)?$/;
+    const NARR_CONSEQUENCE = /(崩溃|死循环|全废|卡死|失败|报错|白干|窝火|气死|哭|唉|完了|丢|扣|没了)/;
+    const PRODUCT_PRE = /(TRAE|Trae|trae|版本|更新|它).{0,8}$/;
+
+    // 元话语：词在说「内容/他人经历」，不在表达作者情绪 → 判中
+    function narrMeta(t, w) {
+      const i = t.indexOf(w);
+      const pre = t.slice(Math.max(0, i - 10), i);
+      const post = t.slice(i + w.length, i + w.length + 8);
+      if (/[“"「『]$/.test(pre) && /^[”"」』]/.test(post)) return true;  // 引号内=提及而非使用
+      if (NARR_META_AFTER.test(post)) return true;                        // 翻车记录 / 从翻车到爆款
+      if (THIRD_PRE.test(pre) || SOLVE_PRE.test(pre)) return true;        // 别人翻车 / 专治翻车
+      if (SELF_PRE.test(pre) && !PRODUCT_PRE.test(t)) return true;        // 我翻车了（自嘲）
+      return false;
+    }
+    // 叙述词只有在「后果句 / 产品主语」时才算负面
+    function narrNegative(t, w) {
+      const i = t.indexOf(w);
+      const pre = t.slice(Math.max(0, i - 10), i);
+      if (nearNegated(t, i) || /零$/.test(t.slice(Math.max(0, i - 2), i))) return false;
+      if (narrMeta(t, w)) return false;
+      if (NARR_CONSEQUENCE.test(t)) return true;                          // 翻车……死循环/崩溃/唉
+      return PRODUCT_PRE.test(pre);                                       // TRAE 又翻车了 / 更新翻车
+    }
+
     // 输入 { title, category, solved }；输出 { label, reason }；label='中' 表示不显示
     function score(input) {
       const t = String(input.title || '').trim();
@@ -931,8 +967,13 @@ html.trae-dark .search-container .warning{ color:#f08a70; }
       const strong = NEG_STRONG.find((w) => t.indexOf(w) !== -1);
       if (strong && !nearNegated(t, t.indexOf(strong))) return { label: '怒', reason: '强烈负面词：' + strong };
       if (/(压根|根本|简直|实在)(就)?(没法|用不了|不能用|不行)/.test(t)) return { label: '哀', reason: '强调式后果：没法用' };
-      const soft = NEG_SOFT.find((w) => t.indexOf(w) !== -1);
-      if (soft) return { label: '哀', reason: '软化负面词：' + soft };
+      const hard = NEG_HARD.find((w) => t.indexOf(w) !== -1);
+      if (hard) return { label: '哀', reason: '软化负面词：' + hard };
+      const narr = NEG_NARR.find((w) => t.indexOf(w) !== -1);
+      if (narr) {
+        if (narrMeta(t, narr)) return { label: '中', reason: '叙述/复盘口吻（' + narr + '），元话语不构成本帖情绪' };
+        if (narrNegative(t, narr)) return { label: '哀', reason: '叙述负面词+后果：' + narr };
+      }
 
       const issue = ISSUE_WORDS.find((w) => t.indexOf(w) !== -1);
       if (issue) {
