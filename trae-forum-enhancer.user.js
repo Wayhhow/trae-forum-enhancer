@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TRAE 论坛增强助手
 // @namespace    https://github.com/Wayhhow
-// @version      0.6.9-exp
+// @version      0.6.10-exp
 // @description  一键暗黑模式 + 图片亮度自动调节 + 列表页数据增强 + 帖子温度计 + 随机漫游 + 一键回到顶部 + 【实验】情绪标记（😄😠😢😅🆘）与今日情绪面板 | © 2026 Wayhhow · MIT License
 // @author       Wayhhow
 // @homepage     https://github.com/Wayhhow
@@ -901,6 +901,14 @@ html.trae-dark .search-container .warning{ color:#f08a70; }
       if (/(压根|根本|简直)(就)?(没法|不能|不行|用不了)/.test(t)) return false;
       return true;
     }
+    // 玩梗/惊叹语境：表情包大赛、脑洞帖里「救命」「离谱」是夸张赞叹，不是愤怒
+    function isPlayful(t) {
+      const fun = /(救命|笑死|哈哈|😂|🤣|😱|🤯|脑洞|整活|玩梗)/.test(t);
+      const intense = /(离谱|绝了|逆天|太绝|笑不活)/.test(t);
+      if (fun && intense) return true;
+      if (/(表情包|大赛|挑战赛)/.test(t) && fun) return true;
+      return false;
+    }
 
     /* 软负面词分层（v0.6.8）
      * 背景：v0.6.7 把 11 个词统一当作「出现即负面」，464754 的「附全部翻车记录」被误判 😢。
@@ -964,6 +972,7 @@ html.trae-dark .search-container .warning{ color:#f08a70; }
       }
 
       if (/(强|好|快|牛|美|稳)得(离谱|夸张|逆天)/.test(t)) return { label: '喜', reason: '程度副词褒用' };
+      if (isPlayful(t)) return { label: '中', reason: '玩梗/惊叹语境，不判负面' };
       const strong = NEG_STRONG.find((w) => t.indexOf(w) !== -1);
       if (strong && !nearNegated(t, t.indexOf(strong))) return { label: '怒', reason: '强烈负面词：' + strong };
       if (/(压根|根本|简直|实在)(就)?(没法|用不了|不能用|不行)/.test(t)) return { label: '哀', reason: '强调式后果：没法用' };
@@ -990,7 +999,7 @@ html.trae-dark .search-container .warning{ color:#f08a70; }
         return { label: '喜', reason: '贬词褒用/根治句式' };
       }
       const pos = POS_STRONG.find((w) => t.indexOf(w) !== -1);
-      if (pos && !/^(希望|能不能|建议|求)/.test(t) && !/(吗|？|\?)$/.test(t) && !nearNegated(t, t.indexOf(pos))) {
+      if (pos && !(pos === '赞' && /\d+\s*(个|多)?\s*赞/.test(t)) && !/^(希望|能不能|建议|求)/.test(t) && !/(吗|？|\?)$/.test(t) && !nearNegated(t, t.indexOf(pos))) {
         return { label: '喜', reason: '夸赞信号：' + pos };
       }
 
